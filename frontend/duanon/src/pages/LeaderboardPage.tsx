@@ -5,6 +5,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useGame } from '../context/GameContext';
 import { useNavigate } from 'react-router-dom';
+import config from '../config';
 
 interface LeaderboardUser {
   name: string;
@@ -24,7 +25,9 @@ const LeaderboardPage = () => {
   const fetchLeaderboard = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get('http://localhost:5000/api/users/leaderboard');
+      console.log('Fetching leaderboard from:', `${config.API_URL}/users/leaderboard`);
+      const response = await axios.get(`${config.API_URL}/users/leaderboard`);
+      console.log('Leaderboard data:', response.data);
       setLeaderboard(response.data);
     } catch (error) {
       console.error('Error fetching leaderboard:', error);

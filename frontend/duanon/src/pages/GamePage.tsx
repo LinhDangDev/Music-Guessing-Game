@@ -123,6 +123,9 @@ const GamePage = () => {
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   // Ref để theo dõi timer từ setInterval
   const countdownTimerRef = useRef<number | null>(null);
+  // Track audio reload attempts
+  const [audioRetryCount, setAudioRetryCount] = useState(0);
+  const maxRetries = 3;
 
   // State cho confirm modal
   const [showModal, setShowModal] = useState(false);
@@ -148,6 +151,9 @@ const GamePage = () => {
   // Tự động phát nhạc khi clip mới được tải
   useEffect(() => {
     if (currentClip && audioPlayerRef.current) {
+      // Reset retry count when a new clip is loaded
+      setAudioRetryCount(0);
+
       // Đặt timeout để đảm bảo audio đã được load
       setTimeout(() => {
         if (audioPlayerRef.current) {
@@ -157,9 +163,33 @@ const GamePage = () => {
             toast.info('Nhạc sẽ tự động phát...');
           });
         }
-      }, 300);
+      }, 500);
     }
   }, [currentClip]);
+
+  const handleAudioError = () => {
+    if (audioRetryCount < maxRetries) {
+      console.log(`Audio error, retrying (${audioRetryCount + 1}/${maxRetries})...`);
+      setAudioRetryCount(prev => prev + 1);
+
+      // Reload the audio element
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.load();
+
+        // Try to play again after a short delay
+        setTimeout(() => {
+          if (audioPlayerRef.current) {
+            audioPlayerRef.current.play().catch(err => {
+              console.log('Retry auto-play prevented:', err);
+            });
+          }
+        }, 1000);
+      }
+    } else {
+      console.log('Max retries reached, showing error to user');
+      toast.error('Không thể phát bài hát. Hãy thử lại hoặc bỏ qua.');
+    }
+  };
 
   const loadNewClip = async () => {
     // Reset các state trước khi load clip mới
@@ -185,6 +215,7 @@ const GamePage = () => {
     setSelectedOption(null);
     setResult(null);
     setCountdown(null);
+    setAudioRetryCount(0);
 
     try {
       await fetchRandomClip();
@@ -402,6 +433,7 @@ const GamePage = () => {
           src={fullClipUrl}
           getAudioRef={handleAudioRef}
           disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
+          onError={handleAudioError}
         />
 
         {/* Fallback HTML5 audio player */}
@@ -411,7 +443,12 @@ const GamePage = () => {
               Không nghe được? Thử phát nhạc tại đây
             </summary>
             <div className="pt-3">
-              <audio controls className="w-full" controlsList="nodownload">
+              <audio
+                controls
+                className="w-full"
+                controlsList="nodownload"
+                onError={handleAudioError}
+              >
                 <source src={fullClipUrl} type="audio/mpeg" />
                 Your browser does not support the audio element.
               </audio>

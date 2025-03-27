@@ -7,9 +7,10 @@ interface AudioPlayerProps {
   onEnded?: () => void;
   getAudioRef?: (audioElement: HTMLAudioElement) => void;
   disableControls?: boolean;
+  onError?: () => void;
 }
 
-const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false }: AudioPlayerProps) => {
+const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onError }: AudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -82,6 +83,8 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false }: Aud
         const newCount = prev + 1;
         if (newCount === 1) {
           toast.error('Không thể phát nhạc. Vui lòng thử lại!');
+          // Call the external error handler if provided
+          if (onError) onError();
         }
         return newCount;
       });
@@ -103,7 +106,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false }: Aud
       audio.removeEventListener('error', handleError);
       cancelAnimationFrame(animationRef.current!);
     };
-  }, [src, onEnded, getAudioRef]);
+  }, [src, onEnded, getAudioRef, onError]);
 
   // Animate visualizer bars with reduced update frequency
   useEffect(() => {

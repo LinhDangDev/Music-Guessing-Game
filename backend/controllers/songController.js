@@ -36,7 +36,7 @@ exports.getSongById = async (req, res) => {
 // Lấy một đoạn nhạc ngẫu nhiên và các lựa chọn đáp án
 exports.getRandomClip = async (req, res) => {
   try {
-    console.log('Đang lấy clip ngẫu nhiên...');
+    console.log('Đang lấy bài hát ngẫu nhiên...');
 
     // Đếm tổng số bài hát
     const count = await Song.countDocuments();
@@ -97,7 +97,7 @@ exports.getRandomClip = async (req, res) => {
         const fakeSong = fakeSongs[Math.floor(Math.random() * fakeSongs.length)];
         if (!otherSongs.some(s => s.title === fakeSong.title)) {
           otherSongs.push({
-            _id: new mongoose.Types.ObjectId(), // Tạo ID giả với cú pháp mới
+            _id: new mongoose.Types.ObjectId(),
             title: fakeSong.title,
             artist: fakeSong.artist
           });
@@ -105,9 +105,9 @@ exports.getRandomClip = async (req, res) => {
       }
     }
 
-    // Lấy clipUrl từ bài hát
-    let clipUrl = randomSong.clipPath || randomSong.filePath;
-    console.log(`Sử dụng URL clip: ${clipUrl}`);
+    // Lấy URL nguyên bản từ bài hát
+    const fullSongUrl = randomSong.filePath;
+    console.log(`Sử dụng URL đầy đủ: ${fullSongUrl}`);
 
     // Tạo mảng đáp án gồm cả đáp án đúng
     const choices = [
@@ -128,7 +128,7 @@ exports.getRandomClip = async (req, res) => {
 
     // Trả về thông tin cho client
     const responseData = {
-      clipUrl,
+      clipUrl: fullSongUrl,
       correctAnswerId: randomSong._id,
       choices
     };
@@ -140,54 +140,6 @@ exports.getRandomClip = async (req, res) => {
     console.error('Lỗi khi lấy clip ngẫu nhiên:', error);
     res.status(500).json({ message: error.message });
   }
-};
-
-// Hàm tạo clip từ bài hát
-const createClip = async (song) => {
-  // Nếu là nguồn bên ngoài, không tạo clip mà trả về URL clip có sẵn
-  if (song.externalSource && song.clipPath) {
-    return song.clipPath;
-  }
-
-  // Nếu là file nội bộ, xử lý như cũ
-  const sourceFile = path.join(__dirname, '../../', song.filePath);
-  const clipFileName = `${song._id}_clip.mp3`;
-  const clipPath = path.join(__dirname, '../assets/clips', clipFileName);
-
-  // Kiểm tra xem file clip đã tồn tại chưa
-  if (fs.existsSync(clipPath)) {
-    return clipPath;
-  }
-
-  // Tạo clip 7 giây ở vị trí ngẫu nhiên
-  return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(sourceFile, (err, metadata) => {
-      if (err) {
-        return reject(err);
-      }
-
-      const duration = metadata.format.duration;
-      const clipDuration = 7; // 7 seconds
-      let startTime = Math.floor(Math.random() * (duration - clipDuration));
-
-      // Đảm bảo startTime không âm
-      startTime = Math.max(0, startTime);
-
-      ffmpeg(sourceFile)
-        .setStartTime(startTime)
-        .setDuration(clipDuration)
-        .output(clipPath)
-        .on('end', () => {
-          console.log(`Đã tạo clip cho bài hát: ${song.title}`);
-          resolve(clipPath);
-        })
-        .on('error', (err) => {
-          console.error(`Lỗi khi tạo clip: ${err.message}`);
-          reject(err);
-        })
-        .run();
-    });
-  });
 };
 
 // Hàm xáo trộn mảng
