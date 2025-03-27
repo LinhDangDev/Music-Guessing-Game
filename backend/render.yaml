@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: music-guessing-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: music-data
+      mountPath: /opt/render/project/src/music
+      sizeGB: 1

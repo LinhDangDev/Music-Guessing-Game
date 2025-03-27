@@ -35,8 +35,18 @@ mongoose.connect(process.env.MONGODB_URI)
     }
   });
 
+// CORS Configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://linhdangdev.software/', /linhdangdev.software$/] // Replace with your actual domain
+    : 'http://localhost:5173',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
 // Routes
