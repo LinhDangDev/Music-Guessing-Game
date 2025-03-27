@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: music-guessing-frontend
+    env: static
+    buildCommand: npm install && npm run build:prod
+    staticPublishPath: ./dist
+    domains:
+      - music-guessing-frontend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://music-guessing-backend.onrender.com/api
+      - key: VITE_CLIPS_URL
+        value: https://music-guessing-backend.onrender.com/assets/clips
