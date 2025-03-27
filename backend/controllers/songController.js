@@ -36,7 +36,7 @@ exports.getSongById = async (req, res) => {
 // Lấy một đoạn nhạc ngẫu nhiên và các lựa chọn đáp án
 exports.getRandomClip = async (req, res) => {
   try {
-    console.log('Đang lấy bài hát ngẫu nhiên...');
+    console.log('Đang lấy đoạn nhạc ngẫu nhiên...');
 
     // Đếm tổng số bài hát
     const count = await Song.countDocuments();
@@ -107,7 +107,17 @@ exports.getRandomClip = async (req, res) => {
 
     // Lấy URL nguyên bản từ bài hát
     const fullSongUrl = randomSong.filePath;
-    console.log(`Sử dụng URL đầy đủ: ${fullSongUrl}`);
+    console.log(`URL đầy đủ: ${fullSongUrl}`);
+
+    // Tạo URL với tham số để cắt đoạn ngẫu nhiên từ bài hát
+    // Sử dụng cách này để hỗ trợ client cắt đoạn nhạc mà không cần xử lý ở server
+    const randomStartPercentage = Math.floor(Math.random() * 60); // Bắt đầu từ 0-60% của bài hát
+    const clipDuration = 7; // 7 giây
+
+    // Tạo URL với tham số start_time và duration
+    let clipUrl = fullSongUrl;
+    // Giữ nguyên fullSongUrl cho GitHub raw URLs, sẽ xử lý cắt ở client
+    console.log(`Đoạn nhạc bắt đầu từ: ${randomStartPercentage}%, thời lượng: ${clipDuration}s`);
 
     // Tạo mảng đáp án gồm cả đáp án đúng
     const choices = [
@@ -129,6 +139,8 @@ exports.getRandomClip = async (req, res) => {
     // Trả về thông tin cho client
     const responseData = {
       clipUrl: fullSongUrl,
+      clipStartPercent: randomStartPercentage,
+      clipDuration: clipDuration,
       correctAnswerId: randomSong._id,
       choices
     };

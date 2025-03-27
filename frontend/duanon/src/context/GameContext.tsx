@@ -23,6 +23,10 @@ interface GameContextType {
   setIsPlaying: (isPlaying: boolean) => void;
   currentClip: string | null;
   setCurrentClip: (currentClip: string | null) => void;
+  clipStartPercent: number | null;
+  setClipStartPercent: (percent: number | null) => void;
+  clipDuration: number | null;
+  setClipDuration: (duration: number | null) => void;
   options: SongOption[];
   setOptions: (options: SongOption[]) => void;
   correctAnswer: SongOption | null;
@@ -40,6 +44,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [score, setScore] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentClip, setCurrentClip] = useState<string | null>(null);
+  const [clipStartPercent, setClipStartPercent] = useState<number | null>(null);
+  const [clipDuration, setClipDuration] = useState<number | null>(null);
   const [options, setOptions] = useState<SongOption[]>([]);
   const [correctAnswer, setCorrectAnswer] = useState<SongOption | null>(null);
 
@@ -55,6 +61,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const clipUrl = response.data.clipUrl;
       setCurrentClip(clipUrl);
 
+      // Lưu thông tin về thời điểm bắt đầu và thời lượng clip
+      setClipStartPercent(response.data.clipStartPercent || 0);
+      setClipDuration(response.data.clipDuration || 7);
+
       // Set options/choices
       if (response.data.choices && Array.isArray(response.data.choices)) {
         setOptions(response.data.choices);
@@ -66,7 +76,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         setCorrectAnswer(correctOption);
       } else {
         console.error('Invalid response format - choices not found or not an array');
-        toast.error('Invalid game data format. Please try again.');
+        toast.error('Định dạng dữ liệu không hợp lệ. Vui lòng thử lại!');
+        return;
       }
     } catch (error) {
       console.error('Error fetching random clip:', error);
@@ -76,26 +87,50 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           data: error.response?.data,
           headers: error.response?.headers
         });
+
+        // Hiển thị thông báo lỗi chi tiết hơn
+        if (error.response?.status === 404) {
+          toast.error('Không tìm thấy bài hát. Vui lòng thử lại!');
+        } else if (error.message.includes('Network Error')) {
+          toast.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối internet!');
+        } else {
+          toast.error(`Lỗi khi tải nhạc: ${error.message}`);
+        }
+      } else {
+        toast.error('Không thể tải nhạc. Vui lòng thử lại!');
       }
-      toast.error('Failed to load audio clip. Please try again.');
+
+      // Ném lỗi để component gọi có thể xử lý
+      throw error;
     }
   };
 
   const submitScore = async (newScore?: number) => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user logged in, skipping score submission');
+      return;
+    }
 
     // Sử dụng điểm được truyền vào hoặc điểm hiện tại từ state
     const scoreToSubmit = newScore !== undefined ? newScore : score;
 
     try {
+      console.log(`Submitting score ${scoreToSubmit} for user ${user.name}`);
       await axios.put(`${API_URL}/users/update-score`, {
         name: user.name,
         score: scoreToSubmit,
       });
+      console.log('Score submitted successfully');
       // toast.success('Score saved successfully!');
     } catch (error) {
       console.error('Error submitting score:', error);
-      toast.error('Failed to save score. Please try again.');
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          status: error.response?.status,
+          data: error.response?.data
+        });
+      }
+      toast.error('Không thể lưu điểm. Vui lòng thử lại!');
     }
   };
 
@@ -108,6 +143,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     setIsPlaying,
     currentClip,
     setCurrentClip,
+    clipStartPercent,
+    setClipStartPercent,
+    clipDuration,
+    setClipDuration,
     options,
     setOptions,
     correctAnswer,

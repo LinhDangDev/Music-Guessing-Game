@@ -8,9 +8,11 @@ interface AudioPlayerProps {
   getAudioRef?: (audioElement: HTMLAudioElement) => void;
   disableControls?: boolean;
   onError?: () => void;
+  onPlay?: () => void;
+  onPause?: () => void;
 }
 
-const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onError }: AudioPlayerProps) => {
+const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onError, onPlay, onPause }: AudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -67,10 +69,12 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
 
     const handlePlay = () => {
       setIsPlaying(true);
+      if (onPlay) onPlay();
     };
 
     const handlePause = () => {
       setIsPlaying(false);
+      if (onPause) onPause();
     };
 
     const handleError = (e: Event) => {
@@ -106,7 +110,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
       audio.removeEventListener('error', handleError);
       cancelAnimationFrame(animationRef.current!);
     };
-  }, [src, onEnded, getAudioRef, onError]);
+  }, [src, onEnded, getAudioRef, onError, onPlay, onPause]);
 
   // Animate visualizer bars with reduced update frequency
   useEffect(() => {

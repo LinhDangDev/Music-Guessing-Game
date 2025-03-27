@@ -26,27 +26,52 @@ const LeaderboardPage = () => {
     try {
       setIsLoading(true);
       console.log('Fetching leaderboard from:', `${config.API_URL}/users/leaderboard`);
-      const response = await axios.get(`${config.API_URL}/users/leaderboard`);
+
+      // Đảm bảo rằng API_URL được sử dụng đúng cách
+      const API_URL = config.API_URL;
+      const response = await axios.get(`${API_URL}/users/leaderboard`);
+
       console.log('Leaderboard data:', response.data);
-      setLeaderboard(response.data);
+
+      if (Array.isArray(response.data)) {
+        // Sắp xếp dữ liệu theo điểm số giảm dần để đảm bảo hiển thị đúng thứ tự
+        const sortedData = [...response.data].sort((a, b) => b.score - a.score);
+        setLeaderboard(sortedData);
+      } else {
+        console.error('Invalid leaderboard data format:', response.data);
+        toast.error('Định dạng dữ liệu không hợp lệ. Vui lòng thử lại!');
+        setLeaderboard([]);
+      }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
-      toast.error('Không thể tải bảng xếp hạng. Vui lòng thử lại!');
+
+      // Hiển thị thông báo lỗi chi tiết hơn
+      if (axios.isAxiosError(error)) {
+        console.error('API error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+
+        // Thử truy cập API với đường dẫn khác nếu gặp lỗi 404 hoặc đường dẫn không đúng
+        if (error.response?.status === 404 || error.message.includes('Network Error')) {
+          toast.error('Không thể kết nối đến máy chủ. Đảm bảo bạn đã kết nối internet!');
+        } else {
+          toast.error(`Lỗi: ${error.message}`);
+        }
+      } else {
+        toast.error('Không thể tải bảng xếp hạng. Vui lòng thử lại sau!');
+      }
+
+      // Set empty array to avoid displaying old data
+      setLeaderboard([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handlePlayAgain = () => {
-    // Reset điểm về 0
-    setScore(0);
-
-    // Nếu đang đăng nhập, gọi API cập nhật điểm về 0
-    if (user) {
-      submitScore();
-    }
-
-    // Chuyển đến trang chơi game
+    // Chuyển trực tiếp đến trang chơi ngay cả khi chưa đăng nhập
     navigate('/play');
   };
 
@@ -78,6 +103,11 @@ const LeaderboardPage = () => {
         {user && userRank && (
           <p className="text-lg text-gray-300 mt-2">
             Xếp hạng của bạn: <span className="text-accent font-bold">#{userRank}</span> với <span className="text-accent font-bold">{user.score}</span> điểm
+          </p>
+        )}
+        {!user && (
+          <p className="text-lg text-gray-300 mt-2">
+            Hãy đăng nhập để có thể ghi điểm và xuất hiện trong bảng xếp hạng!
           </p>
         )}
       </motion.div>
@@ -141,7 +171,7 @@ const LeaderboardPage = () => {
           className="btn btn-primary flex items-center justify-center"
         >
           <FaPlay className="mr-2" />
-          Chơi lại
+          {user ? "Chơi lại" : "Bắt đầu chơi"}
         </button>
 
         <button

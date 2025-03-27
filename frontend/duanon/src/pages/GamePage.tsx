@@ -107,6 +107,8 @@ const GamePage = () => {
     setScore,
     currentClip,
     setCurrentClip,
+    clipStartPercent,
+    clipDuration,
     options,
     correctAnswer,
     fetchRandomClip,
@@ -131,6 +133,9 @@ const GamePage = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalAction, setModalAction] = useState<() => void>(() => {});
   const [modalMessage, setModalMessage] = useState('');
+
+  // State for audio playback control
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     loadNewClip();
@@ -157,6 +162,13 @@ const GamePage = () => {
       // Đặt timeout để đảm bảo audio đã được load
       setTimeout(() => {
         if (audioPlayerRef.current) {
+          // Nếu có thông tin về thời điểm bắt đầu, thiết lập thời điểm phát
+          if (clipStartPercent !== null && audioPlayerRef.current.duration) {
+            const startTime = (clipStartPercent / 100) * audioPlayerRef.current.duration;
+            audioPlayerRef.current.currentTime = startTime;
+            console.log(`Thiết lập thời điểm bắt đầu: ${startTime}s (${clipStartPercent}%)`);
+          }
+
           audioPlayerRef.current.play().catch(err => {
             console.log('Auto-play prevented:', err);
             // Thông báo cho người dùng nếu trình duyệt chặn autoplay
@@ -165,7 +177,21 @@ const GamePage = () => {
         }
       }, 500);
     }
-  }, [currentClip]);
+  }, [currentClip, clipStartPercent]);
+
+  // Thêm xử lý để dừng audio sau khoảng thời gian clipDuration
+  useEffect(() => {
+    if (audioPlayerRef.current && clipDuration && isPlaying && !result) {
+      const stopTimer = setTimeout(() => {
+        if (audioPlayerRef.current && !result) {
+          audioPlayerRef.current.pause();
+          console.log(`Đã dừng phát sau ${clipDuration} giây`);
+        }
+      }, clipDuration * 1000);
+
+      return () => clearTimeout(stopTimer);
+    }
+  }, [isPlaying, clipDuration, result]);
 
   const handleAudioError = () => {
     if (audioRetryCount < maxRetries) {
@@ -406,6 +432,7 @@ const GamePage = () => {
     }
 
     console.log('Current clip URL:', currentClip);
+    console.log('Clip params - Start Percent:', clipStartPercent, '%, Duration:', clipDuration, 's');
 
     // Xử lý URL của clip
     let fullClipUrl = currentClip;
@@ -428,12 +455,18 @@ const GamePage = () => {
 
     return (
       <div className="space-y-4">
+        <div className="bg-primary/10 rounded-lg p-3 text-center text-sm">
+          <p>Lắng nghe đoạn nhạc <span className="font-bold">{clipDuration} giây</span> và chọn đáp án đúng!</p>
+        </div>
+
         {/* Main Audio Player */}
         <AudioPlayer
           src={fullClipUrl}
           getAudioRef={handleAudioRef}
           disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
           onError={handleAudioError}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
         />
 
         {/* Fallback HTML5 audio player */}

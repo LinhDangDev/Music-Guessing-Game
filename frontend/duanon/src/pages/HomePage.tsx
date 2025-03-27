@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaMusic, FaPlay, FaUserPlus } from 'react-icons/fa';
+import { FaMusic, FaPlay, FaUserPlus, FaTrophy } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useGame } from '../context/GameContext';
@@ -112,6 +112,14 @@ const HomePage = () => {
         <p className="text-xl text-gray-300 max-w-2xl mx-auto">
           Thử thách khả năng nghe nhạc của bạn! Nghe một đoạn nhạc ngắn và đoán tên bài hát chính xác.
         </p>
+
+        <button
+          onClick={() => navigate('/leaderboard')}
+          className="btn btn-secondary mt-4 flex items-center mx-auto"
+        >
+          <FaTrophy className="mr-2" />
+          Xem bảng xếp hạng
+        </button>
       </motion.div>
 
       <div className="grid md:grid-cols-2 gap-8">
