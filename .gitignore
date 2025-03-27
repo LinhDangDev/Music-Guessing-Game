@@ -31,5 +31,5 @@ dist-ssr
 .env.production.local
 
 # Music and clips directories
-music/
-backend/assets/clips/
+#music/
+#backend/assets/clips/
