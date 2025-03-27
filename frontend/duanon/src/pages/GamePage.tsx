@@ -376,11 +376,27 @@ const GamePage = () => {
 
     console.log('Current clip URL:', currentClip);
 
-    // Xây dựng URL đầy đủ cho clip âm thanh
+    // Xử lý URL từ Google Drive nếu có
     let fullClipUrl = currentClip;
 
+    // Xử lý Google Drive URL
+    if (currentClip.includes('drive.google.com')) {
+      // Đã là direct URL
+      if (currentClip.includes('uc?export=view&id=')) {
+        fullClipUrl = currentClip;
+      }
+      // Là view URL, cần chuyển đổi
+      else if (currentClip.includes('/file/d/')) {
+        const match = currentClip.match(/\/d\/([^/]+)/);
+        if (match && match[1]) {
+          const fileId = match[1];
+          fullClipUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+      }
+      console.log('Google Drive direct URL:', fullClipUrl);
+    }
     // Nếu là đường dẫn tương đối, thêm base URL
-    if (currentClip.startsWith('/')) {
+    else if (currentClip.startsWith('/')) {
       fullClipUrl = `${config.CLIPS_URL}${currentClip}`;
     }
     // Nếu là đường dẫn tương đối không có dấu / ở đầu
@@ -391,11 +407,22 @@ const GamePage = () => {
     console.log('Full clip URL:', fullClipUrl);
 
     return (
-      <AudioPlayer
-        src={fullClipUrl}
-        getAudioRef={handleAudioRef}
-        disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
-      />
+      <div>
+        <AudioPlayer
+          src={fullClipUrl}
+          getAudioRef={handleAudioRef}
+          disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
+        />
+
+        {/* Fallback audio nếu AudioPlayer component không hoạt động */}
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-400 mb-2">Nếu không thể phát, click vào đây để nghe:</p>
+          <audio controls className="w-full">
+            <source src={fullClipUrl} type="audio/mpeg" />
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      </div>
     );
   };
 
