@@ -1,116 +1,114 @@
+const mongoose = require('mongoose');
+const Song = require('../models/Song');
 const fs = require('fs');
 const path = require('path');
-const Song = require('../models/Song');
+const axios = require('axios');
+const { setTimeout } = require('timers/promises');
 
-/**
- * Quét các thư mục nhạc và thêm vào cơ sở dữ liệu
- */
-const scanMusicDirectories = async () => {
-  console.log('Bắt đầu quét thư mục nhạc...');
+// Danh sách các bài hát từ Google Drive
+const googleDriveSongs = [
+  {
+    title: "Mưa Hồng",
+    artist: "Hà Lê x Màu Nước Band",
+    source: "Youtube",
+    url: "https://drive.google.com/file/d/1Xy7uoTH6-LIRHQtVk7E5_RTHs_eaTJP2/view?usp=sharing"
+  },
+  {
+    title: "Ở Trọ",
+    artist: "Hà Lê",
+    source: "Youtube",
+    url: "https://drive.google.com/file/d/1HYdyBbRkPK2PQtaWW5G3D5-1YXzQPsG-/view?usp=sharing"
+  },
+  {
+    title: "Say You Do",
+    artist: "Tiên Tiên",
+    source: "Soundcloud",
+    url: "https://drive.google.com/file/d/1fzb9SCIjO2g54NsQeYEi7G9X-e6phCrP/view?usp=sharing"
+  },
+  {
+    title: "Một Đêm Say",
+    artist: "Thịnh Suy",
+    source: "Soundcloud",
+    url: "https://drive.google.com/file/d/1rtrKnfVtXP85mJXKPxwEy9MdPf26ELlU/view?usp=sharing"
+  }
+];
 
-  // Thư mục chứa file nhạc
-  const musicDirs = [
-    path.join(__dirname, '../../music/Youtube'),
-    path.join(__dirname, '../../music/Soundcloud')
-  ];
+// Hàm chuyển đổi Google Drive view URL thành direct download URL
+function getDirectDownloadUrlFromGoogleDrive(viewUrl) {
+  if (!viewUrl) return null;
 
-  let totalAdded = 0;
-  let totalExisting = 0;
-  let totalErrors = 0;
-
-  // Xử lý từng thư mục
-  for (const musicDir of musicDirs) {
-    // Kiểm tra thư mục có tồn tại
-    if (!fs.existsSync(musicDir)) {
-      console.error(`Thư mục không tồn tại: ${musicDir}`);
-      continue;
-    }
-
-    try {
-      const dirName = path.basename(musicDir);
-      console.log(`Đang quét thư mục: ${dirName}`);
-
-      // Đọc tất cả file trong thư mục
-      const files = fs.readdirSync(musicDir);
-
-      // Lọc chỉ lấy file mp3
-      const mp3Files = files.filter(file => file.toLowerCase().endsWith('.mp3'));
-
-      console.log(`Tìm thấy ${mp3Files.length} file mp3 trong thư mục ${dirName}`);
-
-      // Xử lý từng file mp3
-      for (const file of mp3Files) {
-        try {
-          // Tạo đường dẫn tương đối so với thư mục gốc của project
-          const relativePath = path.join('music', dirName, file);
-
-          // Parse thông tin từ tên file
-          let title, artist;
-
-          // Format tên file khác nhau tùy thuộc vào nguồn (Youtube/Soundcloud)
-          if (dirName === 'Youtube') {
-            // Youtube format: Artist - Title.mp3
-            const match = file.match(/^(.+) - (.+)\.mp3$/);
-            if (match) {
-              artist = match[1].trim();
-              title = match[2].trim();
-            } else {
-              title = path.basename(file, '.mp3');
-              artist = 'Unknown';
-            }
-          } else if (dirName === 'Soundcloud') {
-            // Soundcloud format: Title - Artist.mp3
-            const match = file.match(/^(.+) - (.+)\.mp3$/);
-            if (match) {
-              title = match[1].trim();
-              artist = match[2].trim();
-            } else {
-              title = path.basename(file, '.mp3');
-              artist = 'Unknown';
-            }
-          }
-
-          // Kiểm tra xem bài hát đã tồn tại trong database chưa
-          const existingSong = await Song.findOne({
-            title: new RegExp(escapeRegex(title), 'i'),
-            artist: new RegExp(escapeRegex(artist), 'i')
-          });
-
-          if (existingSong) {
-            console.log(`Bài hát đã tồn tại: ${title} - ${artist}`);
-            totalExisting++;
-            continue;
-          }
-
-          // Tạo bài hát mới
-          const newSong = new Song({
-            title: title,
-            artist: artist,
-            file: relativePath
-          });
-
-          // Lưu vào database
-          await newSong.save();
-          console.log(`Đã thêm bài hát: ${title} - ${artist}`);
-          totalAdded++;
-
-        } catch (err) {
-          console.error(`Lỗi khi xử lý file ${file}:`, err);
-          totalErrors++;
-        }
-      }
-
-    } catch (err) {
-      console.error(`Lỗi khi quét thư mục ${musicDir}:`, err);
-      totalErrors++;
-    }
+  // Lấy file ID từ URL
+  let fileId = null;
+  const match = viewUrl.match(/\/d\/([^/]+)/);
+  if (match && match[1]) {
+    fileId = match[1];
+  } else {
+    return null;
   }
 
-  console.log('=== Kết quả quét ===');
-  console.log(`Tổng số bài hát đã thêm: ${totalAdded}`);
-  console.log(`Tổng số bài hát đã tồn tại: ${totalExisting}`);
-  console.log(`Tổng số lỗi: ${totalErrors}`);
-  console.log('====================');
+  // Tạo URL trực tiếp để download
+  return `https://drive.google.com/uc?export=view&id=${fileId}`;
+}
+
+// Hàm quét và thêm bài hát
+const scanMusicDirectories = async () => {
+  try {
+    console.log('Đang quét nhạc...');
+
+    // Chuẩn bị thêm bài hát từ Google Drive
+    let songCount = 0;
+
+    // Set HAS_DISK_STORAGE to false khi deploy trên Render
+    process.env.HAS_DISK_STORAGE = 'false';
+    console.log(`HAS_DISK_STORAGE = ${process.env.HAS_DISK_STORAGE}`);
+
+    // Xóa tất cả bài hát trong database để làm mới
+    console.log('Xóa tất cả bài hát cũ để cập nhật...');
+    await Song.deleteMany({});
+
+    console.log('Đang thêm bài hát từ Google Drive...');
+
+    // Thêm từng bài hát từ Google Drive vào database
+    for (const song of googleDriveSongs) {
+      try {
+        // Chuyển đổi URL Google Drive thành direct URL
+        const directUrl = getDirectDownloadUrlFromGoogleDrive(song.url);
+
+        if (!directUrl) {
+          console.log(`Không thể tạo direct URL cho bài hát: ${song.title}`);
+          continue;
+        }
+
+        // Tạo bài hát mới trong database
+        const newSong = new Song({
+          title: song.title,
+          artist: song.artist,
+          source: song.source,
+          filePath: directUrl,
+          clipPath: directUrl, // Sử dụng cùng URL cho cả clip và file gốc
+          externalSource: true
+        });
+
+        await newSong.save();
+        console.log(`Đã thêm bài hát: ${song.title}`);
+        songCount++;
+
+        // Delay nhỏ để tránh quá tải database
+        await setTimeout(100);
+      } catch (err) {
+        console.error(`Lỗi khi thêm bài hát ${song.title}:`, err);
+      }
+    }
+
+    console.log(`Quá trình thêm nhạc hoàn tất. Đã thêm ${songCount} bài hát mới.`);
+
+    // Kiểm tra số bài hát đã thêm
+    const totalSongs = await Song.countDocuments();
+    console.log(`Tổng số bài hát trong database: ${totalSongs}`);
+
+  } catch (error) {
+    console.error('Lỗi khi quét thư mục nhạc:', error);
+  }
 };
 
 /**

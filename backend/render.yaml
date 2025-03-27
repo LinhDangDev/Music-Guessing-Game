@@ -11,6 +11,23 @@ services:
         sync: false
       - key: NODE_ENV
         value: production
+      - key: HAS_DISK_STORAGE
+        value: "false"
+      - key: PORT
+        value: 10000
+    cors:
+      allowOrigins:
+        - "https://music-guessing-frontend.onrender.com"
+        - "https://drive.google.com"
+      allowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowHeaders:
+        - "Content-Type"
+        - "Authorization"
     disk:
       name: music-data
       mountPath: /opt/render/project/src/music
