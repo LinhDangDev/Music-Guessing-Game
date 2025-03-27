@@ -44,9 +44,9 @@ const corsOptions = {
   origin: function(origin, callback) {
     const allowedOrigins = [
       'https://music-guessing-frontend.onrender.com',
-      'https://drive.google.com',
-      'https://docs.google.com',
-      'https://www.googleapis.com'
+      'https://raw.githubusercontent.com',
+      'https://github.com',
+      'https://linhangdev.software'
     ];
 
     // Allow all origins in development and specified origins in production

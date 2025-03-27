@@ -109,16 +109,6 @@ exports.getRandomClip = async (req, res) => {
     let clipUrl = randomSong.clipPath || randomSong.filePath;
     console.log(`Sử dụng URL clip: ${clipUrl}`);
 
-    // Đảm bảo clipUrl là Google Drive direct link
-    if (clipUrl && clipUrl.includes('drive.google.com/file/d/')) {
-      const match = clipUrl.match(/\/d\/([^/]+)/);
-      if (match && match[1]) {
-        const fileId = match[1];
-        clipUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-        console.log(`Đã chuyển đổi thành Google Drive direct link: ${clipUrl}`);
-      }
-    }
-
     // Tạo mảng đáp án gồm cả đáp án đúng
     const choices = [
       {
@@ -209,4 +199,5 @@ function shuffleArray(array) {
   return array;
 }
 
-module.exports = { getRandomClip, getAllSongs };
+// Correctly export the functions that were defined with exports.*
+module.exports = exports;

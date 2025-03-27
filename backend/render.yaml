@@ -18,7 +18,9 @@ services:
     cors:
       allowOrigins:
         - "https://music-guessing-frontend.onrender.com"
-        - "https://drive.google.com"
+        - "https://raw.githubusercontent.com"
+        - "https://github.com"
+        - "https://linhangdev.software"
       allowMethods:
         - GET
         - POST

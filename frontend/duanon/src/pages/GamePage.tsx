@@ -376,24 +376,13 @@ const GamePage = () => {
 
     console.log('Current clip URL:', currentClip);
 
-    // Xử lý URL từ Google Drive nếu có
+    // Xử lý URL của clip
     let fullClipUrl = currentClip;
 
-    // Xử lý Google Drive URL
-    if (currentClip.includes('drive.google.com')) {
-      // Đã là direct URL
-      if (currentClip.includes('uc?export=view&id=')) {
-        fullClipUrl = currentClip;
-      }
-      // Là view URL, cần chuyển đổi
-      else if (currentClip.includes('/file/d/')) {
-        const match = currentClip.match(/\/d\/([^/]+)/);
-        if (match && match[1]) {
-          const fileId = match[1];
-          fullClipUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-        }
-      }
-      console.log('Google Drive direct URL:', fullClipUrl);
+    // GitHub raw URL không cần xử lý thêm
+    if (currentClip.includes('raw.githubusercontent.com')) {
+      fullClipUrl = currentClip;
+      console.log('GitHub raw URL, using as is:', fullClipUrl);
     }
     // Nếu là đường dẫn tương đối, thêm base URL
     else if (currentClip.startsWith('/')) {
