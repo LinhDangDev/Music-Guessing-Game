@@ -407,20 +407,30 @@ const GamePage = () => {
     console.log('Full clip URL:', fullClipUrl);
 
     return (
-      <div>
+      <div className="space-y-4">
+        {/* Main Audio Player */}
         <AudioPlayer
           src={fullClipUrl}
           getAudioRef={handleAudioRef}
           disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
         />
 
-        {/* Fallback audio nếu AudioPlayer component không hoạt động */}
-        <div className="mt-4 text-center">
-          <p className="text-xs text-gray-400 mb-2">Nếu không thể phát, click vào đây để nghe:</p>
-          <audio controls className="w-full">
-            <source src={fullClipUrl} type="audio/mpeg" />
-            Your browser does not support the audio element.
-          </audio>
+        {/* Fallback HTML5 audio player */}
+        <div className="mt-4">
+          <details className="bg-gray-800 rounded-lg p-2">
+            <summary className="cursor-pointer text-sm text-accent hover:text-accent-focus">
+              Không nghe được? Thử phát nhạc tại đây
+            </summary>
+            <div className="pt-3">
+              <audio controls className="w-full" controlsList="nodownload">
+                <source src={fullClipUrl} type="audio/mpeg" />
+                Your browser does not support the audio element.
+              </audio>
+              <div className="mt-2 text-xs text-gray-400">
+                <p>Nếu không phát được, tải lại trang hoặc chọn bỏ qua để đến câu tiếp theo.</p>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     );
