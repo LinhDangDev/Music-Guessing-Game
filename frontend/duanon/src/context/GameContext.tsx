@@ -47,15 +47,36 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchRandomClip = async () => {
     try {
+      console.log('Fetching random clip from:', `${API_URL}/songs/random-clip`);
       const response = await axios.get(`${API_URL}/songs/random-clip`);
-      setCurrentClip(response.data.clipUrl);
-      setOptions(response.data.choices);
-      const correctOption = response.data.choices.find(
-        (choice: SongOption & { id: string }) => choice.id === response.data.correctAnswerId
-      );
-      setCorrectAnswer(correctOption);
+      console.log('Clip response:', response.data);
+
+      // Ensure clipUrl is a full URL
+      const clipUrl = response.data.clipUrl;
+      setCurrentClip(clipUrl);
+
+      // Set options/choices
+      if (response.data.choices && Array.isArray(response.data.choices)) {
+        setOptions(response.data.choices);
+
+        // Find the correct answer
+        const correctOption = response.data.choices.find(
+          (choice: SongOption & { id: string }) => choice.id === response.data.correctAnswerId
+        );
+        setCorrectAnswer(correctOption);
+      } else {
+        console.error('Invalid response format - choices not found or not an array');
+        toast.error('Invalid game data format. Please try again.');
+      }
     } catch (error) {
       console.error('Error fetching random clip:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
       toast.error('Failed to load audio clip. Please try again.');
     }
   };

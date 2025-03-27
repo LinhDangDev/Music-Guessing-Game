@@ -22,10 +22,14 @@ const HomePage = () => {
     }
 
     setIsLoading(true);
+    console.log('Attempting login with name:', name);
+    console.log('Using API URL:', config.API_URL);
 
     try {
       const API_URL = config.API_URL;
+      console.log(`Sending POST request to ${API_URL}/users/create`);
       const response = await axios.post(`${API_URL}/users/create`, { name });
+      console.log('Create user response:', response.data);
 
       setUser({
         name,
@@ -37,17 +41,23 @@ const HomePage = () => {
       navigate('/play');
 
     } catch (error: unknown) {
+      console.error('Login error details:', error);
+
       if (error && typeof error === 'object' && 'response' in error &&
           error.response && typeof error.response === 'object' &&
           'status' in error.response && error.response.status === 400) {
         // User already exists, try to get their score
         try {
+          console.log(`Fetching leaderboard from ${config.API_URL}/users/leaderboard`);
           const leaderboardResponse = await axios.get(`${config.API_URL}/users/leaderboard`);
+          console.log('Leaderboard response:', leaderboardResponse.data);
+
           interface LeaderboardUser {
             name: string;
             score: number;
           }
           const existingUser = leaderboardResponse.data.find((user: LeaderboardUser) => user.name === name);
+          console.log('Found existing user:', existingUser);
 
           if (existingUser) {
             setUser({
@@ -59,14 +69,29 @@ const HomePage = () => {
             toast.info('Đăng nhập với tài khoản hiện có!');
             navigate('/play');
             return;
+          } else {
+            // If the user isn't in the leaderboard, try anyway with the provided name
+            console.log('User not found in leaderboard, continuing as guest');
+            setUser({ name, score: 0 });
+            setScore(0);
+            toast.info('Đăng nhập dưới dạng khách!');
+            navigate('/play');
+            return;
           }
         } catch (err) {
           console.error('Error fetching leaderboard:', err);
+          // Still allow playing as guest
+          setUser({ name, score: 0 });
+          navigate('/play');
+          return;
         }
       }
 
-      toast.error('Đăng nhập thất bại. Vui lòng thử lại!');
-      console.error('Login error:', error);
+      // Allow player to continue as guest even if login fails
+      console.log('Login failed, continuing as guest');
+      setUser({ name, score: 0 });
+      toast.warning('Đăng nhập thất bại, tiếp tục dưới dạng khách!');
+      navigate('/play');
     } finally {
       setIsLoading(false);
     }

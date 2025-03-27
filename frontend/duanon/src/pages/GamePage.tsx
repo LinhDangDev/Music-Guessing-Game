@@ -369,12 +369,26 @@ const GamePage = () => {
 
   // Cần đảm bảo rằng chúng ta hiển thị audio player chỉ khi có currentClip
   const renderAudioPlayer = () => {
-    if (!currentClip) return null;
+    if (!currentClip) {
+      console.log('No current clip available');
+      return null;
+    }
+
+    console.log('Current clip URL:', currentClip);
 
     // Xây dựng URL đầy đủ cho clip âm thanh
-    const fullClipUrl = currentClip.startsWith('http')
-      ? currentClip
-      : `${config.CLIPS_URL}/${currentClip.replace(/^\/assets\/clips\//, '')}`;
+    let fullClipUrl = currentClip;
+
+    // Nếu là đường dẫn tương đối, thêm base URL
+    if (currentClip.startsWith('/')) {
+      fullClipUrl = `${config.CLIPS_URL}${currentClip}`;
+    }
+    // Nếu là đường dẫn tương đối không có dấu / ở đầu
+    else if (!currentClip.startsWith('http')) {
+      fullClipUrl = `${config.CLIPS_URL}/${currentClip}`;
+    }
+
+    console.log('Full clip URL:', fullClipUrl);
 
     return (
       <AudioPlayer
