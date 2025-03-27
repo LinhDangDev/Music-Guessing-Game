@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, ReactNode } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import config from '../config';
 
 // Define types
 interface User {
@@ -42,14 +43,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [options, setOptions] = useState<SongOption[]>([]);
   const [correctAnswer, setCorrectAnswer] = useState<SongOption | null>(null);
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = config.API_URL;
 
   const fetchRandomClip = async () => {
     try {
       const response = await axios.get(`${API_URL}/songs/random-clip`);
-      setCurrentClip(response.data.clip);
-      setOptions(response.data.options);
-      setCorrectAnswer(response.data.correctAnswer);
+      setCurrentClip(response.data.clipUrl);
+      setOptions(response.data.choices);
+      const correctOption = response.data.choices.find(
+        (choice: SongOption & { id: string }) => choice.id === response.data.correctAnswerId
+      );
+      setCorrectAnswer(correctOption);
     } catch (error) {
       console.error('Error fetching random clip:', error);
       toast.error('Failed to load audio clip. Please try again.');

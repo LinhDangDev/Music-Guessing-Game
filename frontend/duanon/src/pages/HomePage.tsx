@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useGame } from '../context/GameContext';
 import { motion } from 'framer-motion';
+import config from '../config';
 
 const HomePage = () => {
   const [name, setName] = useState('');
@@ -23,7 +24,7 @@ const HomePage = () => {
     setIsLoading(true);
 
     try {
-      const API_URL = 'http://localhost:5000/api';
+      const API_URL = config.API_URL;
       const response = await axios.post(`${API_URL}/users/create`, { name });
 
       setUser({
@@ -41,7 +42,7 @@ const HomePage = () => {
           'status' in error.response && error.response.status === 400) {
         // User already exists, try to get their score
         try {
-          const leaderboardResponse = await axios.get('http://localhost:5000/api/users/leaderboard');
+          const leaderboardResponse = await axios.get(`${config.API_URL}/users/leaderboard`);
           interface LeaderboardUser {
             name: string;
             score: number;

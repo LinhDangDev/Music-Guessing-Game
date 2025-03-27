@@ -5,6 +5,7 @@ import { FaPlay, FaRedo, FaMusic, FaCheckCircle, FaTimesCircle, FaTrophy, FaHome
 import { useGame } from '../context/GameContext';
 import AudioPlayer from '../components/AudioPlayer';
 import { useNavigate } from 'react-router-dom';
+import config from '../config';
 
 // Confetti component for celebration when getting correct answer
 const Confetti = () => {
@@ -366,6 +367,24 @@ const GamePage = () => {
     }, 100);
   };
 
+  // Cần đảm bảo rằng chúng ta hiển thị audio player chỉ khi có currentClip
+  const renderAudioPlayer = () => {
+    if (!currentClip) return null;
+
+    // Xây dựng URL đầy đủ cho clip âm thanh
+    const fullClipUrl = currentClip.startsWith('http')
+      ? currentClip
+      : `${config.CLIPS_URL}/${currentClip.replace(/^\/assets\/clips\//, '')}`;
+
+    return (
+      <AudioPlayer
+        src={fullClipUrl}
+        getAudioRef={handleAudioRef}
+        disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
+      />
+    );
+  };
+
   if (gameOver) {
     return (
       <div className="max-w-2xl mx-auto py-8 text-center">
@@ -458,6 +477,9 @@ const GamePage = () => {
         </div>
       </motion.div>
 
+      {/* Chỉ hiển thị AudioPlayer nếu có clip và không phải game over */}
+      {!gameOver && !isLoading && renderAudioPlayer()}
+
       {currentClip ? (
         <>
           <motion.div
@@ -466,12 +488,6 @@ const GamePage = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
           >
-            <AudioPlayer
-              src={`http://localhost:5000${currentClip}`}
-              onEnded={() => {}}
-              getAudioRef={handleAudioRef}
-              disableControls={true} // Vô hiệu hóa nút điều khiển
-            />
           </motion.div>
 
           <motion.div
