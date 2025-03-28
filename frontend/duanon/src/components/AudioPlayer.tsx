@@ -25,12 +25,14 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const lastUpdateTimeRef = useRef<number>(0);
+  const clipDurationRef = useRef<number>(7); // Giữ thời lượng clip là 7 giây
 
   // Mỗi khi src thay đổi, reset error state và countdown
   useEffect(() => {
     setHasError(false);
     setErrorCount(0);
     setRemainingTime(7);
+    clipDurationRef.current = 7;
 
     console.log('Audio src changed to:', src);
 
@@ -61,9 +63,19 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
     };
 
     const setAudioTime = () => {
-      if (audio.currentTime <= 7) {
+      if (audio.currentTime <= audio.currentTime + clipDurationRef.current) {
         setCurrentTime(audio.currentTime);
-        setRemainingTime(7 - Math.floor(audio.currentTime));
+
+        // Tính toán thời gian còn lại từ thời điểm bắt đầu
+        const elapsedTime = audio.currentTime - audio.startTime;
+        const timeLeft = Math.max(0, Math.ceil(clipDurationRef.current - elapsedTime));
+        setRemainingTime(timeLeft);
+
+        // Dừng audio sau khi phát đủ 7 giây
+        if (elapsedTime >= clipDurationRef.current && isPlaying) {
+          audio.pause();
+          if (onPause) onPause();
+        }
       }
     };
 
@@ -74,6 +86,8 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
 
     const handlePlay = () => {
       setIsPlaying(true);
+      // Lưu thời điểm bắt đầu phát
+      audio.startTime = audio.currentTime;
       if (onPlay) onPlay();
     };
 
@@ -121,13 +135,11 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
     if (!isPlaying) return;
 
     const animateVisualizer = (timestamp: number) => {
-      // Only update visualizer every 200ms to reduce flickering
-      if (timestamp - lastUpdateTimeRef.current > 200) {
-        const newHeights = visualizerHeights.map((height) => {
-          // Make changes more gradual (only change by up to 20% from current height)
-          const change = Math.floor(Math.random() * 8) - 4;
-          const newHeight = Math.max(5, Math.min(40, height + change));
-          return newHeight;
+      // Only update visualizer every 100ms to reduce flickering but keep it active
+      if (timestamp - lastUpdateTimeRef.current > 100) {
+        const newHeights = visualizerHeights.map(() => {
+          // Tạo chiều cao ngẫu nhiên từ 5-40px để tạo hiệu ứng nhảy nhạc
+          return Math.floor(Math.random() * 35) + 5;
         });
 
         setVisualizerHeights(newHeights);
@@ -142,7 +154,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
     return () => {
       cancelAnimationFrame(animationRef.current!);
     };
-  }, [isPlaying]);
+  }, [isPlaying, visualizerHeights]);
 
   const togglePlay = () => {
     if (disableControls || hasError) return;
@@ -205,14 +217,14 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
               flex: 1,
               margin: '0 1px',
               borderRadius: '1px',
-              transition: 'height 0.2s ease'
+              transition: 'height 0.05s ease' // Rút ngắn thời gian transition
             }}
           />
         ))}
       </div>
 
       {/* Countdown timer */}
-      <div className="text-center text-lg font-bold text-accent">
+      <div className="text-center text-2xl font-bold text-accent">
         {remainingTime} giây
       </div>
 
