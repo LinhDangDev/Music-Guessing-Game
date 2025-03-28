@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaVolumeUp, FaVolumeMute, FaExclamationTriangle } from 'react-icons/fa';
+import { FaVolumeUp, FaVolumeMute, FaExclamationTriangle, FaPlayCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 interface AudioPlayerProps {
@@ -18,20 +18,26 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
   const [visualizerHeights, setVisualizerHeights] = useState<number[]>([]);
   const [hasError, setHasError] = useState(false);
   const [remainingTime, setRemainingTime] = useState(7); // 7 seconds countdown
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isReadyToPlay, setIsReadyToPlay] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const lastUpdateTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0); // Lưu thời điểm bắt đầu phát
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryRef = useRef<number>(0);
+  const maxRetries = 3;
 
-  // Mỗi khi src thay đổi, reset state
+  // Reset state when src changes
   useEffect(() => {
+    console.log('Audio src changed to:', src);
     setHasError(false);
     setRemainingTime(7);
+    setIsLoaded(false);
+    setIsReadyToPlay(false);
     startTimeRef.current = 0;
-
-    console.log('Audio src changed to:', src);
+    retryRef.current = 0;
 
     // Generate initial visualizer bars
     const barCount = 20;
@@ -49,25 +55,65 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
       timerRef.current = null;
     }
 
-    // Set event listeners
-    const audio = audioRef.current;
-    if (!audio) return;
+    return () => {
+      // Cleanup when component unmounts or src changes
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [src]);
 
-    // Cung cấp tham chiếu audio cho component cha nếu có
+  // Setup event listeners for the audio element
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !src) return;
+
+    // Provide audio reference to parent component if needed
     if (getAudioRef) {
       getAudioRef(audio);
     }
 
+    const handleLoadedMetadata = () => {
+      console.log('Audio metadata loaded successfully');
+      setIsLoaded(true);
+      setIsReadyToPlay(true);
+    };
+
+    const handleLoadedData = () => {
+      console.log('Audio data loaded, ready to play');
+      setIsLoaded(true);
+
+      // Try to play automatically if not already playing
+      if (!isPlaying && audioRef.current && isReadyToPlay) {
+        playAudio();
+      }
+    };
+
+    const handleCanPlay = () => {
+      console.log('Audio can play now');
+      setIsReadyToPlay(true);
+
+      // Try to play automatically if loaded
+      if (!isPlaying && audioRef.current && isLoaded) {
+        playAudio();
+      }
+    };
+
     const handlePlay = () => {
+      console.log('Audio play event triggered');
       setIsPlaying(true);
 
-      // Lưu thời điểm bắt đầu phát vào ref
+      // Store the current playback position
       startTimeRef.current = audio.currentTime;
 
-      // Bắt đầu đếm ngược từ 7 giây
+      // Start 7-second countdown
       setRemainingTime(7);
 
-      // Đặt timer 1 giây để đếm ngược thời gian
+      // Set timer for countdown
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -76,7 +122,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
         setRemainingTime((prev) => {
           const newTime = prev - 1;
 
-          // Nếu đếm về 0, dừng phát và xóa timer
+          // If countdown reaches 0, stop playback and clear timer
           if (newTime <= 0) {
             if (audio && !audio.paused) {
               audio.pause();
@@ -94,7 +140,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
         });
       }, 1000);
 
-      // Đặt timer để dừng audio sau 7 giây
+      // Set timer to stop audio after 7 seconds
       setTimeout(() => {
         if (audio && !audio.paused) {
           audio.pause();
@@ -105,9 +151,10 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
     };
 
     const handlePause = () => {
+      console.log('Audio pause event triggered');
       setIsPlaying(false);
 
-      // Dừng đếm ngược khi audio bị pause
+      // Stop countdown when audio is paused
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -117,9 +164,10 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
     };
 
     const handleEnded = () => {
+      console.log('Audio ended event triggered');
       setIsPlaying(false);
 
-      // Dừng đếm ngược khi audio kết thúc
+      // Stop countdown when audio ends
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -130,10 +178,29 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
 
     const handleError = (e: Event) => {
       console.error('Audio error:', e);
+
+      // If there are retries left, try loading again
+      if (retryRef.current < maxRetries) {
+        console.log(`Retrying audio load (${retryRef.current + 1}/${maxRetries})...`);
+        retryRef.current++;
+
+        // Small delay before retrying
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.load();
+          }
+        }, 1000);
+
+        return;
+      }
+
+      // If max retries reached, show error
       setHasError(true);
       setIsPlaying(false);
+      setIsLoaded(false);
+      setIsReadyToPlay(false);
 
-      // Dừng đếm ngược khi có lỗi
+      // Stop countdown when there's an error
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -143,29 +210,35 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
       toast.error('Không thể phát nhạc. Vui lòng thử lại!');
     };
 
+    // Add event listeners
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('loadeddata', handleLoadedData);
+    audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
 
+    // Clean up event listeners
     return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('loadeddata', handleLoadedData);
+      audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
-
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
     };
-  }, [src, onEnded, getAudioRef, onError, onPlay, onPause]);
+  }, [src, getAudioRef, onEnded, onError, onPlay, onPause, isLoaded, isPlaying, isReadyToPlay]);
 
-  // Animate visualizer bars with reduced update frequency
+  // Attempt to play the audio when it's ready
+  useEffect(() => {
+    if (isLoaded && isReadyToPlay && audioRef.current && !isPlaying) {
+      playAudio();
+    }
+  }, [isLoaded, isReadyToPlay, isPlaying]);
+
+  // Animate visualizer bars
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -191,7 +264,40 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, visualizerHeights.length]);
+
+  // Function to play the audio with proper error handling
+  const playAudio = () => {
+    if (!audioRef.current) return;
+
+    try {
+      // Make sure we're at the right starting position
+      if (audioRef.current.duration) {
+        // Don't set currentTime if we're already playing
+        if (!isPlaying) {
+          audioRef.current.currentTime = startTimeRef.current;
+        }
+      }
+
+      // Use a promise to catch any play() errors
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Audio playback started successfully');
+          })
+          .catch(err => {
+            console.error('Playback error:', err);
+            // Show play button if autoplay is prevented
+            setIsPlaying(false);
+          });
+      }
+    } catch (err) {
+      console.error('Error playing audio:', err);
+      setIsPlaying(false);
+    }
+  };
 
   const toggleMute = () => {
     const audio = audioRef.current;
@@ -201,7 +307,13 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
     setIsMuted(!isMuted);
   };
 
-  // Có lỗi khi phát nhạc
+  const handleManualPlay = () => {
+    if (isLoaded && audioRef.current) {
+      playAudio();
+    }
+  };
+
+  // Show error state
   if (hasError) {
     return (
       <div className="card p-6 mt-6 bg-red-900/20">
@@ -218,7 +330,12 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
 
   return (
     <div className="card p-6 mt-6">
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="auto"
+        crossOrigin="anonymous"
+      />
 
       {/* Fixed height container for visualizer */}
       <div className="visualizer mb-4" style={{ height: '45px', display: 'flex', alignItems: 'center' }}>
@@ -243,8 +360,24 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: Au
         {remainingTime} giây
       </div>
 
-      {/* Volume control */}
-      <div className="flex justify-end mt-2">
+      {/* Controls */}
+      <div className="flex justify-between items-center mt-4">
+        {!isPlaying && isLoaded && (
+          <button
+            onClick={handleManualPlay}
+            className="btn-primary rounded-full p-3"
+            title="Phát nhạc"
+          >
+            <FaPlayCircle className="text-2xl" />
+          </button>
+        )}
+
+        {!isPlaying && !isLoaded && (
+          <div className="text-sm text-gray-400">Đang tải nhạc...</div>
+        )}
+
+        <div className="flex-grow"></div>
+
         <button
           onClick={toggleMute}
           className="btn-outline rounded-full p-3"
