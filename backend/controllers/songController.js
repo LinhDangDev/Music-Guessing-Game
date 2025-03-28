@@ -5,7 +5,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const ffprobePath = require('ffprobe-static').path;
 const mongoose = require('mongoose');
-const { getSignedUrl } = require('../utils/s3Services');
+const { getSignedUrl, uploadToS3 } = require('../utils/s3Services');
 
 // Đặt đường dẫn ffmpeg
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -34,6 +34,55 @@ exports.getSongById = async (req, res) => {
   }
 };
 
+// Upload bài hát mới lên S3 và lưu vào database
+exports.uploadSongToS3 = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Không có file nào được tải lên' });
+    }
+
+    const { title, artist, source = 'S3' } = req.body;
+
+    if (!title || !artist) {
+      return res.status(400).json({ message: 'Thiếu thông tin title hoặc artist' });
+    }
+
+    // Tạo key cho S3 từ thông tin bài hát
+    const s3Key = `songs/${source}/${title.replace(/\s+/g, '_')}_${artist.replace(/\s+/g, '_')}_${Date.now()}.mp3`;
+
+    // Upload file lên S3
+    const filePath = req.file.path;
+    const uploadResult = await uploadToS3(filePath, s3Key);
+
+    // Tạo bài hát mới trong database
+    const newSong = new Song({
+      title,
+      artist,
+      source,
+      filePath: s3Key,
+      s3Key: s3Key
+    });
+
+    await newSong.save();
+
+    // Xóa file tạm sau khi đã upload lên S3
+    try {
+      fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error('Không thể xóa file tạm:', err);
+    }
+
+    res.status(201).json({
+      message: 'Bài hát đã được tải lên thành công',
+      song: newSong,
+      s3Url: uploadResult.Location
+    });
+  } catch (error) {
+    console.error('Lỗi khi upload bài hát:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Lấy một đoạn nhạc ngẫu nhiên và các lựa chọn đáp án
 exports.getRandomClip = async (req, res) => {
   try {
@@ -48,19 +97,9 @@ exports.getRandomClip = async (req, res) => {
       return res.status(404).json({ message: 'Không có bài hát nào trong cơ sở dữ liệu' });
     }
 
-    // Lấy ngẫu nhiên một bài hát, ưu tiên bài hát có externalSource
-    let randomSong;
-    const externalCount = await Song.countDocuments({ externalSource: true });
-
-    if (externalCount > 0) {
-      console.log(`Sử dụng bài hát từ nguồn bên ngoài (có ${externalCount} bài)`);
-      const randomExternalIndex = Math.floor(Math.random() * externalCount);
-      randomSong = await Song.findOne({ externalSource: true }).skip(randomExternalIndex);
-    } else {
-      console.log('Không có bài hát từ nguồn bên ngoài, sử dụng bài hát bất kỳ');
-      const randomIndex = Math.floor(Math.random() * count);
-      randomSong = await Song.findOne().skip(randomIndex);
-    }
+    // Lấy ngẫu nhiên một bài hát từ S3
+    const randomIndex = Math.floor(Math.random() * count);
+    const randomSong = await Song.findOne().skip(randomIndex);
 
     console.log(`Bài hát ngẫu nhiên: ${randomSong.title} (ID: ${randomSong._id})`);
 
@@ -106,18 +145,18 @@ exports.getRandomClip = async (req, res) => {
       }
     }
 
-    // Lấy URL nguyên bản từ bài hát
-    const fullSongUrl = randomSong.filePath;
-    console.log(`URL đầy đủ: ${fullSongUrl}`);
+    // Lấy URL từ S3 cho bài hát
+    const s3Key = randomSong.filePath;
+    console.log(`S3 Key: ${s3Key}`);
 
-    // Tạo URL với tham số để cắt đoạn ngẫu nhiên từ bài hát
-    // Sử dụng cách này để hỗ trợ client cắt đoạn nhạc mà không cần xử lý ở server
+    // Tạo Signed URL từ Amazon S3
+    const signedUrl = getSignedUrl(s3Key);
+    console.log(`Đã tạo Signed URL từ S3`);
+
+    // Tạo thông tin về vị trí bắt đầu của đoạn nhạc (sẽ được xử lý ở client)
     const randomStartPercentage = Math.floor(Math.random() * 60); // Bắt đầu từ 0-60% của bài hát
     const clipDuration = 7; // 7 giây
 
-    // Tạo URL với tham số start_time và duration
-    let clipUrl = fullSongUrl;
-    // Giữ nguyên fullSongUrl cho GitHub raw URLs, sẽ xử lý cắt ở client
     console.log(`Đoạn nhạc bắt đầu từ: ${randomStartPercentage}%, thời lượng: ${clipDuration}s`);
 
     // Tạo mảng đáp án gồm cả đáp án đúng
@@ -139,7 +178,7 @@ exports.getRandomClip = async (req, res) => {
 
     // Trả về thông tin cho client
     const responseData = {
-      clipUrl: getSignedUrl(fullSongUrl),
+      clipUrl: signedUrl,
       clipStartPercent: randomStartPercentage,
       clipDuration: clipDuration,
       correctAnswerId: randomSong._id,

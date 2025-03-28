@@ -21,13 +21,13 @@ const songSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  clipPath: {
+  s3Key: {
     type: String,
     default: null
   },
-  externalSource: {
-    type: Boolean,
-    default: false
+  clipPath: {
+    type: String,
+    default: null
   },
   createdAt: {
     type: Date,
