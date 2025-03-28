@@ -14,7 +14,8 @@ const songSchema = new mongoose.Schema({
   source: {
     type: String,
     required: true,
-    enum: ['Youtube', 'Soundcloud']
+    enum: ['Youtube', 'Soundcloud', 'S3'],
+    default: 'S3'
   },
   filePath: {
     type: String,

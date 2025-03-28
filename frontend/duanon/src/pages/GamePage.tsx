@@ -5,7 +5,6 @@ import { FaPlay, FaRedo, FaMusic, FaCheckCircle, FaTimesCircle, FaTrophy, FaHome
 import { useGame } from '../context/GameContext';
 import AudioPlayer from '../components/AudioPlayer';
 import { useNavigate } from 'react-router-dom';
-import config from '../config';
 
 // Confetti component for celebration when getting correct answer
 const Confetti = () => {
@@ -432,38 +431,16 @@ const GamePage = () => {
     }
 
     console.log('Current clip URL:', currentClip);
-    console.log('Clip params - Start Percent:', clipStartPercent, '%, Duration:', clipDuration, 's');
 
-    // Xử lý URL của clip
-    let fullClipUrl = currentClip;
-
-    // GitHub raw URL không cần xử lý thêm
-    if (currentClip.includes('raw.githubusercontent.com')) {
-      fullClipUrl = currentClip;
-      console.log('GitHub raw URL, using as is:', fullClipUrl);
-    }
-    // Nếu là đường dẫn tương đối, thêm base URL
-    else if (currentClip.startsWith('/')) {
-      fullClipUrl = `${config.CLIPS_URL}${currentClip}`;
-    }
-    // Nếu là đường dẫn tương đối không có dấu / ở đầu
-    else if (!currentClip.startsWith('http')) {
-      fullClipUrl = `${config.CLIPS_URL}/${currentClip}`;
-    }
-
-    console.log('Full clip URL:', fullClipUrl);
-
+    // URL từ S3 đã là đầy đủ, không cần xử lý thêm
     return (
       <div className="space-y-4">
         <div className="bg-primary/10 rounded-lg p-3 text-center text-sm">
           <p>Lắng nghe đoạn nhạc <span className="font-bold">7 giây</span> và chọn đáp án đúng!</p>
         </div>
-
-        {/* Main Audio Player */}
         <AudioPlayer
-          src={fullClipUrl}
+          src={currentClip}
           getAudioRef={handleAudioRef}
-          disableControls={!!result} // Vô hiệu hóa điều khiển khi đã có kết quả
           onError={handleAudioError}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}

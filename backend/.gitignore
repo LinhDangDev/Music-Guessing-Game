@@ -9,3 +9,24 @@ yarn-error.log*
 
 # Environment variables
 .env
+
+# Database
+database/
+
+# Logs
+logs/
+
+# Temporary files
+tmp/
+
+# Cache
+cache/
+
+# Configuration files
+config/
+
+# Documentation
+docs/
+
+# Test files
+test/

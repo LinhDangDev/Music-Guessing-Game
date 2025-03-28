@@ -74,6 +74,9 @@ const NavBar = () => {
       setModalMessage(message);
       setModalAction(() => () => navigate(destination));
       setShowModal(true);
+    } else {
+      // If not playing, navigate directly
+      navigate(destination);
     }
   };
 
@@ -109,7 +112,7 @@ const NavBar = () => {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <a
-            href="/"
+            href="#"
             onClick={handleHomeClick}
             className="flex items-center space-x-2 cursor-pointer"
           >
@@ -119,7 +122,7 @@ const NavBar = () => {
 
           <div className="flex items-center space-x-6">
             <a
-              href="/leaderboard"
+              href="#"
               onClick={handleLeaderboardClick}
               className={`flex items-center space-x-1 ${isActive('/leaderboard')}`}
             >

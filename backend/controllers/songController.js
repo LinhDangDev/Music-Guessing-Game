@@ -5,6 +5,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const ffprobePath = require('ffprobe-static').path;
 const mongoose = require('mongoose');
+const { getSignedUrl } = require('../utils/s3Services');
 
 // Đặt đường dẫn ffmpeg
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -138,7 +139,7 @@ exports.getRandomClip = async (req, res) => {
 
     // Trả về thông tin cho client
     const responseData = {
-      clipUrl: fullSongUrl,
+      clipUrl: getSignedUrl(fullSongUrl),
       clipStartPercent: randomStartPercentage,
       clipDuration: clipDuration,
       correctAnswerId: randomSong._id,
