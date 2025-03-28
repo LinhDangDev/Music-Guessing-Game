@@ -145,17 +145,17 @@ const scanMusicDirectories = async () => {
 
         console.log(`Thêm bài hát YouTube: ${songObj.title}`);
 
-        const newSong = new Song({
+                const newSong = new Song({
           title: songObj.title,
           artist: songObj.artist,
           source: songObj.source,
           filePath: encodedUrl,
           clipPath: encodedUrl,
           externalSource: true
-        });
+                });
 
-        await newSong.save();
-        songCount++;
+                await newSong.save();
+                songCount++;
 
         // Delay nhỏ để tránh quá tải database
         await setTimeout(50);
@@ -181,10 +181,10 @@ const scanMusicDirectories = async () => {
           filePath: encodedUrl,
           clipPath: encodedUrl,
           externalSource: true
-        });
+          });
 
-        await newSong.save();
-        songCount++;
+          await newSong.save();
+          songCount++;
 
         // Delay nhỏ để tránh quá tải database
         await setTimeout(50);

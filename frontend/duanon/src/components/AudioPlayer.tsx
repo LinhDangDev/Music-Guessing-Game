@@ -20,15 +20,17 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
   const [visualizerHeights, setVisualizerHeights] = useState<number[]>([]);
   const [hasError, setHasError] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(7); // 7 seconds countdown
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const lastUpdateTimeRef = useRef<number>(0);
 
-  // Mỗi khi src thay đổi, reset error state
+  // Mỗi khi src thay đổi, reset error state và countdown
   useEffect(() => {
     setHasError(false);
     setErrorCount(0);
+    setRemainingTime(7);
 
     console.log('Audio src changed to:', src);
 
@@ -53,13 +55,16 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
     }
 
     const setAudioData = () => {
-      setDuration(audio.duration);
-      setHasError(false); // Nếu loadeddata được gọi, audio đã load thành công
-      console.log('Audio loaded successfully, duration:', audio.duration);
+      setDuration(7); // Always set to 7 seconds
+      setHasError(false);
+      console.log('Audio loaded successfully');
     };
 
     const setAudioTime = () => {
-      setCurrentTime(audio.currentTime);
+      if (audio.currentTime <= 7) {
+        setCurrentTime(audio.currentTime);
+        setRemainingTime(7 - Math.floor(audio.currentTime));
+      }
     };
 
     const handleEnded = () => {
@@ -87,7 +92,6 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
         const newCount = prev + 1;
         if (newCount === 1) {
           toast.error('Không thể phát nhạc. Vui lòng thử lại!');
-          // Call the external error handler if provided
           if (onError) onError();
         }
         return newCount;
@@ -179,7 +183,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
           <span className="ml-2 text-lg">Không thể phát nhạc</span>
         </div>
         <p className="text-center text-sm text-gray-300 mb-2">
-          Vui lòng dùng nút phát nhạc dự phòng bên dưới
+          Vui lòng thử lại hoặc bỏ qua câu hỏi này
         </p>
       </div>
     );
@@ -207,32 +211,13 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
         ))}
       </div>
 
-      {/* Fixed height progress container */}
-      <div className="w-full bg-gray-700 rounded-full h-2 mb-4 overflow-hidden">
-        <div
-          className="bg-accent h-2 rounded-full transition-all duration-300"
-          style={{ width: `${calculateProgress()}%` }}
-        />
+      {/* Countdown timer */}
+      <div className="text-center text-lg font-bold text-accent">
+        {remainingTime} giây
       </div>
 
-      <div className="flex justify-between items-center">
-        {!disableControls && (
-          <button
-            onClick={togglePlay}
-            className="btn-primary rounded-full p-3"
-          >
-            {isPlaying ? <FaPause /> : <FaPlay />}
-          </button>
-        )}
-
-        {disableControls && (
-          <div className="w-10"></div>
-        )}
-
-        <div className="text-sm">
-          {Math.floor(currentTime)} / {Math.floor(duration) || '?'} giây
-        </div>
-
+      {/* Volume control */}
+      <div className="flex justify-end mt-2">
         <button
           onClick={toggleMute}
           className="btn-outline rounded-full p-3"

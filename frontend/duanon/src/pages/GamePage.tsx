@@ -456,7 +456,7 @@ const GamePage = () => {
     return (
       <div className="space-y-4">
         <div className="bg-primary/10 rounded-lg p-3 text-center text-sm">
-          <p>Lắng nghe đoạn nhạc <span className="font-bold">{clipDuration} giây</span> và chọn đáp án đúng!</p>
+          <p>Lắng nghe đoạn nhạc <span className="font-bold">7 giây</span> và chọn đáp án đúng!</p>
         </div>
 
         {/* Main Audio Player */}
@@ -468,29 +468,6 @@ const GamePage = () => {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
         />
-
-        {/* Fallback HTML5 audio player */}
-        <div className="mt-4">
-          <details className="bg-gray-800 rounded-lg p-2">
-            <summary className="cursor-pointer text-sm text-accent hover:text-accent-focus">
-              Không nghe được? Thử phát nhạc tại đây
-            </summary>
-            <div className="pt-3">
-              <audio
-                controls
-                className="w-full"
-                controlsList="nodownload"
-                onError={handleAudioError}
-              >
-                <source src={fullClipUrl} type="audio/mpeg" />
-                Your browser does not support the audio element.
-              </audio>
-              <div className="mt-2 text-xs text-gray-400">
-                <p>Nếu không phát được, tải lại trang hoặc chọn bỏ qua để đến câu tiếp theo.</p>
-              </div>
-            </div>
-          </details>
-        </div>
       </div>
     );
   };
