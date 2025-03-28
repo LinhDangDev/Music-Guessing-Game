@@ -185,8 +185,10 @@ exports.getRandomClip = async (req, res) => {
       choices
     };
 
-    console.log('Đã gửi dữ liệu clip: correctAnswerId =', randomSong._id);
-    console.log('Số lượng lựa chọn:', choices.length);
+    console.log('Generated Signed URL:', signedUrl);
+    // Thêm URL gốc vào response để debug
+    responseData.originalFilePath = s3Key;
+
     res.json(responseData);
   } catch (error) {
     console.error('Lỗi khi lấy clip ngẫu nhiên:', error);

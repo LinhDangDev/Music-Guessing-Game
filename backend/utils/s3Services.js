@@ -12,13 +12,40 @@ const s3 = new AWS.S3();
 
 // Tạo signed URL để truy cập file từ S3
 const getSignedUrl = (key) => {
+  // Xử lý nếu key là URL GitHub
+  if (key.includes('githubusercontent.com')) {
+    // Trích xuất phần filename
+    const urlParts = key.split('/');
+    const filename = urlParts[urlParts.length - 1];
+
+    // Xác định nguồn (Youtube/Soundcloud)
+    let source = 'Youtube';
+    if (key.includes('Soundcloud')) {
+      source = 'Soundcloud';
+    }
+
+    // Tạo S3 key mới
+    key = `music/${source}/${decodeURIComponent(filename)}`;
+  }
+
+  // Đảm bảo key không có tiền tố bucket
+  if (key.includes('music-guessing-game-audio/')) {
+    key = key.split('music-guessing-game-audio/')[1];
+  }
+
   const params = {
     Bucket: process.env.S3_BUCKET,
     Key: key,
-    Expires: 3600 // URL hết hạn sau 1 giờ
+    Expires: 3600
   };
 
-  return s3.getSignedUrl('getObject', params);
+  console.log('Generating signed URL for:', key);
+  try {
+    return s3.getSignedUrl('getObject', params);
+  } catch (error) {
+    console.error('Error generating signed URL:', error);
+    return null;
+  }
 };
 
 // Upload file lên S3
