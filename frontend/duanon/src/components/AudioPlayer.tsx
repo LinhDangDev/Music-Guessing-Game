@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaExclamationTriangle } from 'react-icons/fa';
+import { FaVolumeUp, FaVolumeMute, FaExclamationTriangle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 interface AudioPlayerProps {
@@ -12,27 +12,24 @@ interface AudioPlayerProps {
   onPause?: () => void;
 }
 
-const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onError, onPlay, onPause }: AudioPlayerProps) => {
+const AudioPlayer = ({ src, onEnded, getAudioRef, onError, onPlay, onPause }: AudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
   const [visualizerHeights, setVisualizerHeights] = useState<number[]>([]);
   const [hasError, setHasError] = useState(false);
-  const [errorCount, setErrorCount] = useState(0);
   const [remainingTime, setRemainingTime] = useState(7); // 7 seconds countdown
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
   const lastUpdateTimeRef = useRef<number>(0);
-  const clipDurationRef = useRef<number>(7); // Giữ thời lượng clip là 7 giây
+  const startTimeRef = useRef<number>(0); // Lưu thời điểm bắt đầu phát
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Mỗi khi src thay đổi, reset error state và countdown
+  // Mỗi khi src thay đổi, reset state
   useEffect(() => {
     setHasError(false);
-    setErrorCount(0);
     setRemainingTime(7);
-    clipDurationRef.current = 7;
+    startTimeRef.current = 0;
 
     console.log('Audio src changed to:', src);
 
@@ -45,7 +42,12 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
 
     // Reset player when src changes
     setIsPlaying(false);
-    setCurrentTime(0);
+
+    // Clear existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
 
     // Set event listeners
     const audio = audioRef.current;
@@ -56,44 +58,74 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
       getAudioRef(audio);
     }
 
-    const setAudioData = () => {
-      setDuration(7); // Always set to 7 seconds
-      setHasError(false);
-      console.log('Audio loaded successfully');
-    };
-
-    const setAudioTime = () => {
-      if (audio.currentTime <= audio.currentTime + clipDurationRef.current) {
-        setCurrentTime(audio.currentTime);
-
-        // Tính toán thời gian còn lại từ thời điểm bắt đầu
-        const elapsedTime = audio.currentTime - audio.startTime;
-        const timeLeft = Math.max(0, Math.ceil(clipDurationRef.current - elapsedTime));
-        setRemainingTime(timeLeft);
-
-        // Dừng audio sau khi phát đủ 7 giây
-        if (elapsedTime >= clipDurationRef.current && isPlaying) {
-          audio.pause();
-          if (onPause) onPause();
-        }
-      }
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      if (onEnded) onEnded();
-    };
-
     const handlePlay = () => {
       setIsPlaying(true);
-      // Lưu thời điểm bắt đầu phát
-      audio.startTime = audio.currentTime;
+
+      // Lưu thời điểm bắt đầu phát vào ref
+      startTimeRef.current = audio.currentTime;
+
+      // Bắt đầu đếm ngược từ 7 giây
+      setRemainingTime(7);
+
+      // Đặt timer 1 giây để đếm ngược thời gian
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
+      timerRef.current = setInterval(() => {
+        setRemainingTime((prev) => {
+          const newTime = prev - 1;
+
+          // Nếu đếm về 0, dừng phát và xóa timer
+          if (newTime <= 0) {
+            if (audio && !audio.paused) {
+              audio.pause();
+            }
+
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+
+            return 0;
+          }
+
+          return newTime;
+        });
+      }, 1000);
+
+      // Đặt timer để dừng audio sau 7 giây
+      setTimeout(() => {
+        if (audio && !audio.paused) {
+          audio.pause();
+        }
+      }, 7000);
+
       if (onPlay) onPlay();
     };
 
     const handlePause = () => {
       setIsPlaying(false);
+
+      // Dừng đếm ngược khi audio bị pause
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
       if (onPause) onPause();
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+
+      // Dừng đếm ngược khi audio kết thúc
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      if (onEnded) onEnded();
     };
 
     const handleError = (e: Event) => {
@@ -101,32 +133,35 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
       setHasError(true);
       setIsPlaying(false);
 
-      // Tăng số lần lỗi
-      setErrorCount(prev => {
-        const newCount = prev + 1;
-        if (newCount === 1) {
-          toast.error('Không thể phát nhạc. Vui lòng thử lại!');
-          if (onError) onError();
-        }
-        return newCount;
-      });
+      // Dừng đếm ngược khi có lỗi
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      if (onError) onError();
+      toast.error('Không thể phát nhạc. Vui lòng thử lại!');
     };
 
-    audio.addEventListener('loadeddata', setAudioData);
-    audio.addEventListener('timeupdate', setAudioTime);
-    audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
 
     return () => {
-      audio.removeEventListener('loadeddata', setAudioData);
-      audio.removeEventListener('timeupdate', setAudioTime);
-      audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
-      cancelAnimationFrame(animationRef.current!);
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
     };
   }, [src, onEnded, getAudioRef, onError, onPlay, onPause]);
 
@@ -135,12 +170,12 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
     if (!isPlaying) return;
 
     const animateVisualizer = (timestamp: number) => {
-      // Only update visualizer every 100ms to reduce flickering but keep it active
+      // Update every 100ms for better visual effect
       if (timestamp - lastUpdateTimeRef.current > 100) {
-        const newHeights = visualizerHeights.map(() => {
-          // Tạo chiều cao ngẫu nhiên từ 5-40px để tạo hiệu ứng nhảy nhạc
-          return Math.floor(Math.random() * 35) + 5;
-        });
+        // Generate new random heights for each bar
+        const newHeights = Array.from({ length: visualizerHeights.length }, () =>
+          Math.floor(Math.random() * 35) + 5
+        );
 
         setVisualizerHeights(newHeights);
         lastUpdateTimeRef.current = timestamp;
@@ -152,26 +187,11 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
     animationRef.current = requestAnimationFrame(animateVisualizer);
 
     return () => {
-      cancelAnimationFrame(animationRef.current!);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
     };
-  }, [isPlaying, visualizerHeights]);
-
-  const togglePlay = () => {
-    if (disableControls || hasError) return;
-
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play().catch(err => {
-        console.error('Failed to play:', err);
-        setHasError(true);
-        toast.error('Không thể phát nhạc. Vui lòng thử lại!');
-      });
-    }
-  };
+  }, [isPlaying]);
 
   const toggleMute = () => {
     const audio = audioRef.current;
@@ -179,11 +199,6 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
 
     audio.muted = !isMuted;
     setIsMuted(!isMuted);
-  };
-
-  const calculateProgress = () => {
-    if (!duration) return 0;
-    return (currentTime / duration) * 100;
   };
 
   // Có lỗi khi phát nhạc
@@ -224,7 +239,7 @@ const AudioPlayer = ({ src, onEnded, getAudioRef, disableControls = false, onErr
       </div>
 
       {/* Countdown timer */}
-      <div className="text-center text-2xl font-bold text-accent">
+      <div className="text-center text-3xl font-bold text-red-500">
         {remainingTime} giây
       </div>
 

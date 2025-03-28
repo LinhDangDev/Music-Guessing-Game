@@ -15,7 +15,7 @@ interface LeaderboardUser {
 const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, setScore, submitScore } = useGame();
+  const { user } = useGame();
   const navigate = useNavigate();
 
   useEffect(() => {

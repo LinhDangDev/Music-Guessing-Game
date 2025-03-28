@@ -174,7 +174,7 @@ const scanMusicDirectories = async () => {
 
         console.log(`Thêm bài hát Soundcloud: ${songObj.title}`);
 
-        const newSong = new Song({
+          const newSong = new Song({
           title: songObj.title,
           artist: songObj.artist,
           source: songObj.source,
